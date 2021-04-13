@@ -8,7 +8,7 @@
 	    "type":"string"
 	},
 	{
-	    "name":"station_id",
+	    "name":"station_name",
 	    "type":"string"
 	},
 	{
