@@ -2,7 +2,7 @@
     "namespace":"com.udacity",
     "type":"record",
     "name":"arrival.value",
-    "fields:"[
+    "fields":[
 	{
 	    "name":"station_id",
 	    "type":"string"
