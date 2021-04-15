@@ -9,7 +9,8 @@ from tornado import gen
 
 
 logger = logging.getLogger(__name__)
-
+BROKER_URL= "PLAINTEXT://localhost:9092"
+SCHEMA_REGISTRY_URL = "http://localhost:8081"
 
 class KafkaConsumer:
     """Defines the base kafka consumer class"""
@@ -37,17 +38,18 @@ class KafkaConsumer:
         #
         #
         self.broker_properties = {
-                #
-                # TODO
-                #
+            "bootstrap.servers":BROKER_URL,
+            "group.id":f'{topic_name_pattern}',
+            'default.topic.config':{'auto.offset.reset':'earliest'}
+ 
         }
 
         # TODO: Create the Consumer, using the appropriate type.
         if is_avro is True:
             self.broker_properties["schema.registry.url"] = "http://localhost:8081"
-            #self.consumer = AvroConsumer(...)
+            self.consumer = AvroConsumer(self.broker_properties)
         else:
-            #self.consumer = Consumer(...)
+            self.consumer = Consumer(self.broker_properties)
             pass
 
         #
@@ -56,7 +58,7 @@ class KafkaConsumer:
         # how the `on_assign` callback should be invoked.
         #
         #
-        # self.consumer.subscribe( TODO )
+         self.consumer.subscribe([self.topic_name_pattern],on_assign=self.on_assign)
 
     def on_assign(self, consumer, partitions):
         """Callback for when topic assignment takes place"""
@@ -64,13 +66,9 @@ class KafkaConsumer:
         # the beginning or earliest
         logger.info("on_assign is incomplete - skipping")
         for partition in partitions:
-            pass
-            #
-            #
-            # TODO
-            #
-            #
-
+            if self.offset_earliest:
+                partition.offset= OFFSET_BEGINNING
+            
         logger.info("partitions assigned for %s", self.topic_name_pattern)
         consumer.assign(partitions)
 
@@ -91,8 +89,21 @@ class KafkaConsumer:
         # is retrieved.
         #
         #
-        logger.info("_consume is incomplete - skipping")
-        return 0
+        #logger.info("_consume is incomplete - skipping")
+        try:
+            msg = self.consumer.poll(self.consume_timeout)
+        except Exception as e:
+            logger.error(f'Poll Exception {e}')
+            return 0
+
+        if msg is None:
+            logger.debug('Msg is none')
+            return 0
+        elif msg.error() is not None:
+            logger.error(f'Msg error {msg.error}')
+        else:
+            self.message_handler(msg)
+            return 1
 
 
     def close(self):
@@ -101,4 +112,4 @@ class KafkaConsumer:
         #
         # TODO: Cleanup the kafka consumer
         #
-        #
+        self.consumer.close()
